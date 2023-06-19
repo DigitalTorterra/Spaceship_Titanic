@@ -1,0 +1,11 @@
+#+title: Notebook Testing
+
+#+begin_src R :results output graphics file :file test.png :quality 100
+library("ggplot2")
+ggplot(iris, aes(x=Sepal.Width, y=Sepal.Length, color=Species)) +
+  geom_point()
+#+end_src
+
+#+RESULTS:
+#+ATTR_HTML: :width 1000px
+[[file:test.png]]

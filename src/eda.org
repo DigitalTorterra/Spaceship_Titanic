@@ -1,0 +1,388 @@
+#+title: Exploratory Data Analysis
+
+* Spaceship Titanic: Exploratory Data Analysis
+** Imports
+#+begin_src R :session "global" :results output org
+library(tidyverse)
+#+end_src
+
+#+RESULTS:
+#+begin_src org
+#+end_src
+
+#+RESULTS:
+#+begin_example
+── [1mAttaching core tidyverse packages[22m ────────────────────────────────────────────────────── tidyverse 2.0.0 ──
+[32m✔[39m [34mdplyr    [39m 1.1.2     [32m✔[39m [34mreadr    [39m 2.1.4
+[32m✔[39m [34mforcats  [39m 1.0.0     [32m✔[39m [34mstringr  [39m 1.5.0
+[32m✔[39m [34mggplot2  [39m 3.4.2     [32m✔[39m [34mtibble   [39m 3.2.1
+[32m✔[39m [34mlubridate[39m 1.9.2     [32m✔[39m [34mtidyr    [39m 1.3.0
+[32m✔[39m [34mpurrr    [39m 1.0.1
+── [1mConflicts[22m ──────────────────────────────────────────────────────────────────────── tidyverse_conflicts() ──
+[31m✖[39m [34mdplyr[39m::[32mfilter()[39m masks [34mstats[39m::filter()
+[31m✖[39m [34mdplyr[39m::[32mlag()[39m    masks [34mstats[39m::lag()
+[36mℹ[39m Use the conflicted package ([3m[34m<http://conflicted.r-lib.org/>[39m[23m) to force all conflicts to become errors
+#+end_example
+
+** Loading Training Data
+The training data is a CSV file with 14 columns and 8693 rows.
+
+#+begin_src R :session "global" :results output org
+train_path <- "./data/raw/train.csv"
+train_data <- read.csv(train_path)
+train_table <- tibble(train_data)
+summary(train_data)
+#+end_src
+
+#+RESULTS:
+#+begin_src org
+ PassengerId         HomePlanet         CryoSleep            Cabin
+ Length:8693        Length:8693        Length:8693        Length:8693
+ Class :character   Class :character   Class :character   Class :character
+ Mode  :character   Mode  :character   Mode  :character   Mode  :character
+
+
+
+
+ Destination             Age            VIP             RoomService
+ Length:8693        Min.   : 0.00   Length:8693        Min.   :    0.0
+ Class :character   1st Qu.:19.00   Class :character   1st Qu.:    0.0
+ Mode  :character   Median :27.00   Mode  :character   Median :    0.0
+                    Mean   :28.83                      Mean   :  224.7
+                    3rd Qu.:38.00                      3rd Qu.:   47.0
+                    Max.   :79.00                      Max.   :14327.0
+                    NA's   :179                        NA's   :181
+   FoodCourt        ShoppingMall          Spa              VRDeck
+ Min.   :    0.0   Min.   :    0.0   Min.   :    0.0   Min.   :    0.0
+ 1st Qu.:    0.0   1st Qu.:    0.0   1st Qu.:    0.0   1st Qu.:    0.0
+ Median :    0.0   Median :    0.0   Median :    0.0   Median :    0.0
+ Mean   :  458.1   Mean   :  173.7   Mean   :  311.1   Mean   :  304.9
+ 3rd Qu.:   76.0   3rd Qu.:   27.0   3rd Qu.:   59.0   3rd Qu.:   46.0
+ Max.   :29813.0   Max.   :23492.0   Max.   :22408.0   Max.   :24133.0
+ NA's   :183       NA's   :208       NA's   :183       NA's   :188
+     Name           Transported
+ Length:8693        Length:8693
+ Class :character   Class :character
+ Mode  :character   Mode  :character
+#+end_src
+
+We can see a preview of the first few rows below.
+
+#+begin_src R :session "global" :results output org
+head(train_data)
+#+end_src
+
+#+RESULTS:
+#+begin_src org
+  PassengerId HomePlanet CryoSleep Cabin   Destination Age   VIP RoomService
+1     0001_01     Europa     False B/0/P   TRAPPIST-1e  39 False           0
+2     0002_01      Earth     False F/0/S   TRAPPIST-1e  24 False         109
+3     0003_01     Europa     False A/0/S   TRAPPIST-1e  58  True          43
+4     0003_02     Europa     False A/0/S   TRAPPIST-1e  33 False           0
+5     0004_01      Earth     False F/1/S   TRAPPIST-1e  16 False         303
+6     0005_01      Earth     False F/0/P PSO J318.5-22  44 False           0
+  FoodCourt ShoppingMall  Spa VRDeck              Name Transported
+1         0            0    0      0   Maham Ofracculy       False
+2         9           25  549     44      Juanna Vines        True
+3      3576            0 6715     49     Altark Susent       False
+4      1283          371 3329    193      Solam Susent       False
+5        70          151  565      2 Willy Santantines        True
+6       483            0  291      0 Sandie Hinetthews        True
+#+end_src
+
+** Feature Exploration
+*** ~PassengerId~
+- Description: A unique ID for each passenger
+- Format: ~gggg_pp~, where ~gggg~ is group number and ~pp~ is number within group
+- Potential Use: create ~GroupSize~
+
+#+begin_src R :session "global" :results output org
+passenger_split <- train_table |>
+  separate_wider_delim(
+    PassengerId,
+    delim = "_",
+    names = c("GroupNum", "GroupPos")
+  ) |>
+  group_by(GroupNum) |>
+  summarize(GroupSize = n())
+
+head(as.data.frame(passenger_split))
+#+end_src
+
+#+RESULTS:
+#+begin_src org
+  GroupNum GroupSize
+1     0001         1
+2     0002         1
+3     0003         2
+4     0004         1
+5     0005         1
+6     0006         2
+#+end_src
+
+Here, we plot the distribution of group sizes. As the plot shows, the vast majority of passengers are traveling alone, but the group size can get as high as 8.
+
+#+begin_src R :session "global" :results output graphics file :file ./output/plots/group_size.png
+ggplot(passenger_split, aes(x=GroupSize)) +
+  geom_histogram(binwidth = 0.5)
+#+end_src
+
+#+RESULTS:
+[[file:./output/plots/group_size.png]]
+#+ATTR_HTML: :width 1000px
+[[file:../output/plots/group_size.png]]
+
+*** ~HomePlanet~
+This is a categorical variable which lists the home planet of each traveler. There are about 200 nulls, and the rest are distributed between Earth, Europa, and Mars.
+
+#+begin_src R :session "global" :results output org
+train_table |>
+  group_by(HomePlanet) |>
+  summarize(num_passengers = n()) |>
+  as.data.frame()
+#+end_src
+
+#+RESULTS:
+#+begin_src org
+  HomePlanet num_passengers
+1                       201
+2      Earth           4602
+3     Europa           2131
+4       Mars           1759
+#+end_src
+
+*** ~CryoSleep~
+This is (or should be) a boolean column which indicates whether each passenger requested to be put in cryo sleep. About 35% of passengers opted for cryo sleep, with about 217 nulls.
+
+#+begin_src R :session "global" :results output org
+train_table |>
+  group_by(CryoSleep) |>
+  summarize(num_passengers = n()) |>
+  as.data.frame()
+#+end_src
+
+#+RESULTS:
+#+begin_src org
+  CryoSleep num_passengers
+1                      217
+2     False           5439
+3      True           3037
+#+end_src
+
+*** ~Cabin~
+- Description: This is the cabin number where the passenger is staying.
+- Format: ~deck/num/side~. ~side~ is ~P~ for port or ~S~ for starboard
+- Transformation: It seems like we can extract three features from this.
+
+#+begin_src R :session "global" :results output org
+cabin_split <- train_table |>
+  separate_wider_delim(
+    Cabin,
+    delim = "/",
+    names = c("CabinDeck", "CabinNum", "CabinSide"),
+    too_few = "align_start"
+  ) |>
+  mutate(
+    CabinNum = as.integer(CabinNum)
+  )
+
+head(as.data.frame(cabin_split))
+#+end_src
+
+#+RESULTS:
+#+begin_src org
+  PassengerId HomePlanet CryoSleep CabinDeck CabinNum CabinSide   Destination
+1     0001_01     Europa     False         B        0         P   TRAPPIST-1e
+2     0002_01      Earth     False         F        0         S   TRAPPIST-1e
+3     0003_01     Europa     False         A        0         S   TRAPPIST-1e
+4     0003_02     Europa     False         A        0         S   TRAPPIST-1e
+5     0004_01      Earth     False         F        1         S   TRAPPIST-1e
+6     0005_01      Earth     False         F        0         P PSO J318.5-22
+  Age   VIP RoomService FoodCourt ShoppingMall  Spa VRDeck              Name
+1  39 False           0         0            0    0      0   Maham Ofracculy
+2  24 False         109         9           25  549     44      Juanna Vines
+3  58  True          43      3576            0 6715     49     Altark Susent
+4  33 False           0      1283          371 3329    193      Solam Susent
+5  16 False         303        70          151  565      2 Willy Santantines
+6  44 False           0       483            0  291      0 Sandie Hinetthews
+  Transported
+1       False
+2        True
+3       False
+4       False
+5        True
+6        True
+#+end_src
+
+Here, we view the distribution of cabin numbers. The feature takes 9 possible values. There are about 200 nulls, and a further 5 with a "T" value. These are probably garbage.
+
+#+begin_src R :session "global" :results output org
+cabin_split |>
+  group_by(CabinDeck) |>
+  summarize(num_passengers = n()) |>
+  as.data.frame()
+#+end_src
+
+#+RESULTS:
+#+begin_src org
+  CabinDeck num_passengers
+1                      199
+2         A            256
+3         B            779
+4         C            747
+5         D            478
+6         E            876
+7         F           2794
+8         G           2559
+9         T              5
+#+end_src
+
+Next, we view the distribution of cabin numbers. There's a decent chance that this feature is garbage. However, it's still possible that there is an effect, so we'll keep it for now.
+
+#+begin_src R :session "global" :results output org
+cabin_split |>
+  select(CabinNum) |>
+  summary() |>
+  as.data.frame()
+#+end_src
+
+#+RESULTS:
+#+begin_src org
+  Var1        Var2             Freq
+1         CabinNum Min.   :   0.0
+2         CabinNum 1st Qu.: 167.2
+3         CabinNum Median : 427.0
+4         CabinNum Mean   : 600.4
+5         CabinNum 3rd Qu.: 999.0
+6         CabinNum Max.   :1894.0
+7         CabinNum    NA's   :199
+#+end_src
+
+#+begin_src R :session "global" :results output graphics file :file ./output/plots/cabin_num.png
+ggplot(cabin_split, aes(x=CabinNum)) +
+  geom_histogram(binwidth = 10)
+#+end_src
+
+#+RESULTS:
+[[file:./output/plots/cabin_num.png]]
+#+ATTR_HTML: :width 1000px
+[[file:../output/plots/cabin_num.png]]
+
+Finally, we consider the side. It can either be ~p~ for port or ~s~ for starboard. It seems like there's about 200 nulls, with the rest split 50/50.
+
+#+begin_src R :session "global" :results output org
+cabin_split |>
+  group_by(CabinSide) |>
+  summarize(num_passengers = n()) |>
+  as.data.frame()
+#+end_src
+
+#+RESULTS:
+#+begin_src org
+  CabinSide num_passengers
+1         P           4206
+2         S           4288
+3      <NA>            199
+#+end_src
+
+*** ~Destination~
+This feature represents the name of the destination for a given passenger. The majority seem to be going to ~TRAPPIST-1e~, with a bit fewer going to ~55 Cancri e~ and ~PSO J318.5-22~ respectively. Additionally, there are about 200 nulls.
+
+#+begin_src R :session "global" :results output org
+train_table |>
+  group_by(Destination) |>
+  summarize(num_passengers = n()) |>
+  as.data.frame()
+#+end_src
+
+#+RESULTS:
+#+begin_src org
+    Destination num_passengers
+1                          182
+2   55 Cancri e           1800
+3 PSO J318.5-22            796
+4   TRAPPIST-1e           5915
+#+end_src
+
+*** Spend Features
+There are five numeric features, representing a passenger's spend on the various luxurious amenities. This includes ~RoomService~, ~FoodCourt~, ~ShoppingMall~, ~Spa~, and ~VRDeck~.
+
+First, we look at the numerical distributions of each.
+
+#+begin_src R :session "global" :results output org
+make_quantile <- function(perc) {
+  function(df) { quantile(df, perc) }
+}
+
+numeric_cols <- c("RoomService", "FoodCourt", "ShoppingMall", "Spa", "VRDeck")
+
+train_table |>
+  select(numeric_cols) |>
+  drop_na() |>
+  summarize(
+    across(numeric_cols, mean, .names = "mean_{col}"),
+    across(numeric_cols, sd, .names = "stdev_{col}"),
+    across(numeric_cols, min, .names = "min_{col}"),
+    across(numeric_cols, make_quantile(0.25), .names = "q1_{col}"),
+    across(numeric_cols, make_quantile(0.5), .names = "median_{col}"),
+    across(numeric_cols, make_quantile(0.75), .names = "q3_{col}"),
+    across(numeric_cols, max, .names = "max_{col}")
+  ) |>
+  gather(key="metric_name", value="metric_val") |>
+  separate_wider_delim(
+    metric_name,
+    delim = "_",
+    names = c("metric_kind", "col_name")
+  ) |>
+  pivot_wider(names_from = col_name, values_from = metric_val) |>
+  as.data.frame()
+#+end_src
+
+#+RESULTS:
+#+begin_src org
+  metric_kind RoomService  FoodCourt ShoppingMall        Spa     VRDeck
+1        mean    225.7106   469.9106     172.9672   317.3463   298.6668
+2       stdev    672.6166  1637.9363     607.8655  1158.9398  1105.7418
+3         min      0.0000     0.0000       0.0000     0.0000     0.0000
+4          q1      0.0000     0.0000       0.0000     0.0000     0.0000
+5      median      0.0000     0.0000       0.0000     0.0000     0.0000
+6          q3     48.0000    79.0000      26.0000    62.0000    46.0000
+7         max  14327.0000 29813.0000   23492.0000 22408.0000 20336.0000
+Warning message:
+[1m[22mattributes are not identical across measure variables; they will be dropped
+#+end_src
+
+*** ~Name~
+I'm not sure if there's anything salvageable from the names. We could try to get ~NameLength~ (just the length of the name), ~NameComplexity~ using some kind of entropy measure, or whatever else. It is possible that there is some kind of relationship between name and the dependent variable. We could also do a bag of letters?
+
+#+begin_src R :session "global" :results output org
+head(train_table |> select(Name) |> as.data.frame())
+#+end_src
+
+#+RESULTS:
+#+begin_src org
+               Name
+1   Maham Ofracculy
+2      Juanna Vines
+3     Altark Susent
+4      Solam Susent
+5 Willy Santantines
+6 Sandie Hinetthews
+#+end_src
+
+*** ~Transported~
+This is the dependent variable. It is a Boolean. We need to clean it so it is recognized as a Boolean. It seems fairly balanced.
+
+#+begin_src R :session "global" :results output org
+train_table |>
+  group_by(Transported) |>
+  summarize(num_people = n()) |>
+  as.data.frame()
+#+end_src
+
+#+RESULTS:
+#+begin_src org
+  Transported num_people
+1       False       4315
+2        True       4378
+#+end_src
